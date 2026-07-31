@@ -1,27 +1,25 @@
 using System;
-using UnityEngine;
 
-public static class GameEvents
+namespace JaadiX.Core
 {
-    // Coin Events
-    public static Action<Coin> OnCoinPocketed;
-    public static Action<Coin> OnCoinSpawned;
+    public static class GameEvents
+    {
+        // Match Events
+        public static Action OnMatchStarted;
+        public static Action OnMatchEnded;
 
-    // Queen Events
-    public static Action OnQueenPocketed;
-    public static Action OnQueenReturned;
+        // Turn Events
+        public static Action OnTurnStarted;
+        public static Action OnTurnEnded;
 
-    // Turn Events
-    public static Action<int> OnTurnChanged;
+        // Coin Events
+        public static Action OnCoinPocketed;
+        public static Action OnQueenPocketed;
 
-    // Match Events
-    public static Action OnMatchStarted;
-    public static Action OnMatchEnded;
+        // UI Events
+        public static Action OnScoreUpdated;
 
-    // Striker Events
-    public static Action OnShotStarted;
-    public static Action OnShotFinished;
-
-    // Physics Events
-    public static Action OnAllCoinsStopped;
+        // Scene Events
+        public static Action<string> OnSceneLoaded;
+    }
 }

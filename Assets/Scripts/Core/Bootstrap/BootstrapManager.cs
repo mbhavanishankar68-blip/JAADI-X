@@ -2,12 +2,12 @@ using UnityEngine;
 
 namespace JaadiX.Core
 {
-    public class BootstrapManager : MonoBehaviour
+    public class BootstrapManager : Singleton<BootstrapManager>
     {
-        #region Unity Callbacks
-
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+
             Debug.Log("=================================");
             Debug.Log(" JAADI X Engine Booting...");
             Debug.Log("=================================");
@@ -15,17 +15,23 @@ namespace JaadiX.Core
             InitializeEngine();
         }
 
-        #endregion
-
-        #region Initialization
-
         private void InitializeEngine()
         {
             Debug.Log("Initializing Core Systems...");
 
+            CreateSceneLoader();
+
             Debug.Log("Core Systems Initialized Successfully.");
         }
 
-        #endregion
+        private void CreateSceneLoader()
+        {
+            GameObject sceneLoaderObject = new GameObject("SceneLoader");
+            sceneLoaderObject.AddComponent<SceneLoader>();
+
+            DontDestroyOnLoad(sceneLoaderObject);
+
+            Debug.Log("SceneLoader Initialized.");
+        }
     }
 }
