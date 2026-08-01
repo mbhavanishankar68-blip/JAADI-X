@@ -163,6 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4309759d4440664f98420d9af05bb54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JaadiX.Core.BootstrapManager
+  gameConfig: {fileID: 11400000, guid: 5816da2bd2e67674ca62d0ff31f7e574, type: 2}
 --- !u!1 &1146464625
 GameObject:
   m_ObjectHideFlags: 0

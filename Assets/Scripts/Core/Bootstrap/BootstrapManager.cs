@@ -4,6 +4,10 @@ namespace JaadiX.Core
 {
     public class BootstrapManager : Singleton<BootstrapManager>
     {
+        [Header("Configuration")]
+        [SerializeField]
+        private GameConfig gameConfig;
+
         protected override void Awake()
         {
             base.Awake();
@@ -17,11 +21,32 @@ namespace JaadiX.Core
 
         private void InitializeEngine()
         {
-            Debug.Log("Initializing Core Systems...");
+            if (gameConfig == null)
+            {
+                Debug.LogError("GameConfig is not assigned to BootstrapManager!");
+                return;
+            }
 
-            CreateSceneLoader();
+            Debug.Log($"Starting {gameConfig.GameName}");
+            Debug.Log($"Version: {gameConfig.Version}");
+
+            Application.targetFrameRate = gameConfig.TargetFrameRate;
+            QualitySettings.vSyncCount = gameConfig.EnableVSync ? 1 : 0;
+
+            InitializeServices();
 
             Debug.Log("Core Systems Initialized Successfully.");
+        }
+
+        private void InitializeServices()
+        {
+            CreateSceneLoader();
+
+            // Future services
+            // CreateAudioManager();
+            // CreateInputManager();
+            // CreateMatchManager();
+            // CreateNetworkManager();
         }
 
         private void CreateSceneLoader()
