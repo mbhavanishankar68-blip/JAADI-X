@@ -1,28 +1,55 @@
 using UnityEngine;
+using JaadiX.Coins;
 
-public class Coin : MonoBehaviour
+namespace JaadiX.Coins
 {
-    private Rigidbody2D rb;
+    [RequireComponent(typeof(SpriteRenderer))]
+    [RequireComponent(typeof(Rigidbody2D))]
+    public class Coin : MonoBehaviour
+    {
+        [Header("Coin Data")]
+        [SerializeField] private CoinData coinData;
 
-    void Awake()
-    {
-        rb = GetComponent<Rigidbody2D>();
-    }
+        private SpriteRenderer spriteRenderer;
+        private Rigidbody2D rb;
 
-    public bool IsMoving()
-    {
-        return rb.linearVelocity.magnitude > 0.05f;
-    }
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        if (collision.gameObject.CompareTag("Striker"))
+        public CoinType CoinType => coinData.CoinType;
+        public int Score => coinData.Score;
+
+        private void Awake()
         {
-            AudioManager.Instance.PlayStrikerHit();
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            rb = GetComponent<Rigidbody2D>();
+
+            ApplyCoinData();
         }
-        else if (collision.gameObject.CompareTag("Coin") ||
-                 collision.gameObject.CompareTag("Queen"))
+
+        private void ApplyCoinData()
         {
-            AudioManager.Instance.PlayCoinHit();
+            if (coinData == null)
+            {
+                Debug.LogWarning($"{name}: CoinData is not assigned.");
+                return;
+            }
+
+            spriteRenderer.sprite = coinData.Sprite;
+
+            rb.mass = coinData.Mass;
+            rb.linearDamping = coinData.Drag;
+            rb.angularDamping = coinData.AngularDrag;
+        }
+
+        public void SetCoinData(CoinData data)
+        {
+            coinData = data;
+            ApplyCoinData();
+        }
+        public bool IsMoving()
+        {
+            if (rb == null)
+                return false;
+
+            return rb.linearVelocity.magnitude > 0.05f;
         }
     }
 }

@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using JaadiX.Core;
 public class StrikerController : MonoBehaviour
 {
     [Header("Position Settings")]
@@ -40,8 +40,7 @@ public class StrikerController : MonoBehaviour
         currentMouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
         // ---------- POSITION STRIKER ----------
-        if (GameManager.Instance.CurrentState == GameManager.GameState.Positioning &&
-            !GameManager.Instance.strikerPlaced)
+        if (GameManager.Instance.CurrentState == GameManager.GameState.Positioning && !GameManager.Instance.strikerPlaced)
         {
             if (Input.GetMouseButtonDown(0))
             {

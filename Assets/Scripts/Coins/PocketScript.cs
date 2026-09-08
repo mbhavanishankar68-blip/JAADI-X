@@ -1,4 +1,5 @@
 using UnityEngine;
+using JaadiX.Core;
 
 public class PocketScript : MonoBehaviour
 {
@@ -8,116 +9,250 @@ public class PocketScript : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D other)
     {
         Rigidbody2D rb = other.attachedRigidbody;
+
+        //--------------------------------------------------
+        // POCKET SPEED CHECK
+        //--------------------------------------------------
+
         if (rb != null && rb.linearVelocity.magnitude > maxPocketSpeed)
             return;
 
-        PocketCoinTracker tracker = other.GetComponent<PocketCoinTracker>();
+
+        //--------------------------------------------------
+        // CLEAR POCKET CAPTURE
+        //--------------------------------------------------
+
+        PocketCoinTracker tracker =
+            other.GetComponent<PocketCoinTracker>();
+
         if (tracker != null)
             tracker.ClearCapture();
+
 
         //--------------------------------------------------
         // NORMAL COIN
         //--------------------------------------------------
+
         if (other.CompareTag("Coin"))
         {
-            AudioManager.Instance.PlayCoinPocket();
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayCoinPocket();
+            }
 
-            CoinPocketAnimation coinAnim = other.GetComponent<CoinPocketAnimation>();
+            CoinPocketAnimation coinAnim =
+                other.GetComponent<CoinPocketAnimation>();
+
             if (coinAnim != null)
+            {
                 coinAnim.Pocket(transform.position);
+            }
             else
+            {
                 other.gameObject.SetActive(false);
+            }
+
+            //--------------------------------------------------
+            // Records that a normal coin was pocketed THIS shot
+            //--------------------------------------------------
 
             GameManager.Instance.coinPocketed = true;
 
-            // If a queen-cover is pending, this coin covers it —
-            // whether the queen fell before OR after it in this shot.
+            //--------------------------------------------------
+            // QUEEN COVER
+            //
+            // Handles: Queen -> Coin (same shot), and
+            //          Queen -> [bonus shot] -> Coin
+            //--------------------------------------------------
+
             if (GameManager.Instance.waitingForQueenCover)
             {
                 GameManager.Instance.queenCovered = true;
+
                 Debug.Log("Queen Covered!");
             }
 
-            ScoreManager.Instance.AddPoint();
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.AddPoint();
+            }
+
             return;
         }
+
 
         //--------------------------------------------------
         // QUEEN
         //--------------------------------------------------
+
         if (other.CompareTag("Queen"))
         {
             //--------------------------------------------------
-            // LAST QUEEN (DISC POOL RULE)
+            // DETERMINE IF THIS IS LAST QUEEN
+            //
+            // Last queen = no normal coins remain AND none was
+            // pocketed in THIS shot either (otherwise a coin
+            // from this same stroke already covers it — treat
+            // as a normal queen instead).
             //--------------------------------------------------
-            if (ScoreManager.Instance.GetNormalCoinsLeft() == 0)
+
+            bool isLastQueen =
+                ScoreManager.Instance.GetNormalCoinsLeft() == 0 &&
+                !GameManager.Instance.coinPocketed;
+
+
+            //--------------------------------------------------
+            // LAST QUEEN
+            //--------------------------------------------------
+
+            if (isLastQueen)
             {
-                if (!GameManager.Instance.queenReturnedOnce)
+                //--------------------------------------------------
+                // IGNORE DUPLICATE TRIGGER
+                //--------------------------------------------------
+
+                if (GameManager.Instance.lastQueenPendingExtraTurn)
                 {
-                    // FIRST pocket this cycle: bounce back to centre and
-                    // request a bonus shot. Do NOT touch CurrentState
-                    // here — GameManager.EndTurn() performs the actual
-                    // transition once physics has settled.
-                    Debug.Log("Last Queen Pocketed — Returning To Centre");
+                    Debug.Log(
+                        "Last Queen: Duplicate trigger ignored."
+                    );
 
-                    AudioManager.Instance.PlayQueenPocket();
+                    return;
+                }
 
-                    GameManager.Instance.queenReturnedOnce = true;
 
-                    CoinPocketAnimation queenReturnAnim = other.GetComponent<CoinPocketAnimation>();
-                    if (queenReturnAnim != null)
-                        queenReturnAnim.CancelPocketAnimation();
+                //--------------------------------------------------
+                // FIRST LAST-QUEEN POCKET
+                //
+                // IMPORTANT: do NOT reposition or reactivate the
+                // queen here. Just play the normal sink animation
+                // and raise the pending flag. GameManager.EndTurn()
+                // -> StartLastQueenExtraTurn() performs the actual
+                // reposition, only once the striker and all coins
+                // have fully stopped moving.
+                //--------------------------------------------------
 
-                    Rigidbody2D queenRb = other.GetComponent<Rigidbody2D>();
-                    if (queenRb != null)
+                if (!GameManager.Instance.lastQueenExtraShot)
+                {
+                    Debug.Log(
+                        "Last Queen Pocketed — Waiting For Shot To Settle"
+                    );
+
+                    if (AudioManager.Instance != null)
                     {
-                        queenRb.linearVelocity = Vector2.zero;
-                        queenRb.angularVelocity = 0f;
+                        AudioManager.Instance.PlayQueenPocket();
                     }
 
-                    other.transform.position =
-                        GameManager.Instance.queenStartPosition.position;
+                    GameManager.Instance.queenCovered = false;
+                    GameManager.Instance.waitingForQueenCover = false;
+                    GameManager.Instance.queenPocketed = false;
+                    GameManager.Instance.queenReturnedOnce = true;
 
-                    other.gameObject.SetActive(true);
+                    CoinPocketAnimation queenReturnAnim =
+                        other.GetComponent<CoinPocketAnimation>();
+
+                    if (queenReturnAnim != null)
+                    {
+                        queenReturnAnim.Pocket(transform.position);
+                    }
+                    else
+                    {
+                        other.gameObject.SetActive(false);
+                    }
 
                     GameManager.Instance.lastQueenPendingExtraTurn = true;
 
                     return;
                 }
 
+
                 //--------------------------------------------------
-                // SECOND pocket (the bonus shot itself) -> WIN
+                // SECOND LAST-QUEEN POCKET (the bonus shot itself)
+                // -> WIN
                 //--------------------------------------------------
-                Debug.Log("Last Queen Pocketed Again");
 
-                AudioManager.Instance.PlayQueenPocket();
+                if (GameManager.Instance.lastQueenExtraShot)
+                {
+                    Debug.Log(
+                        "Last Queen Pocketed Again — GAME OVER"
+                    );
 
-                CoinPocketAnimation queenWinAnim = other.GetComponent<CoinPocketAnimation>();
-                if (queenWinAnim != null)
-                    queenWinAnim.Pocket(transform.position);
-                else
-                    other.gameObject.SetActive(false);
+                    if (AudioManager.Instance != null)
+                    {
+                        AudioManager.Instance.PlayQueenPocket();
+                    }
 
-                GameManager.Instance.queenPocketed = true;
+                    CoinPocketAnimation queenWinAnim =
+                        other.GetComponent<CoinPocketAnimation>();
+
+                    if (queenWinAnim != null)
+                    {
+                        queenWinAnim.Pocket(transform.position);
+                    }
+                    else
+                    {
+                        other.gameObject.SetActive(false);
+                    }
+
+                    GameManager.Instance.queenPocketed = true;
+
+                    return;
+                }
 
                 return;
             }
 
+
             //--------------------------------------------------
             // NORMAL QUEEN
+            //
+            // Handles both orders within the same shot:
+            //   Queen -> Coin   (Coin branch sets queenCovered)
+            //   Coin -> Queen   (set here via coinPocketed)
+            //
+            // If neither happens this shot, GameManager grants
+            // one bonus shot before respotting (official rule).
             //--------------------------------------------------
+
             Debug.Log("Queen Pocketed");
 
-            AudioManager.Instance.PlayQueenPocket();
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayQueenPocket();
+            }
 
-            CoinPocketAnimation normalQueenAnim = other.GetComponent<CoinPocketAnimation>();
+            CoinPocketAnimation normalQueenAnim =
+                other.GetComponent<CoinPocketAnimation>();
+
             if (normalQueenAnim != null)
+            {
                 normalQueenAnim.Pocket(transform.position);
+            }
             else
+            {
                 other.gameObject.SetActive(false);
+            }
 
             GameManager.Instance.queenPocketed = true;
             GameManager.Instance.waitingForQueenCover = true;
+
+            // If a normal coin was already pocketed BEFORE the
+            // queen in this same shot, it's covered immediately.
+            GameManager.Instance.queenCovered =
+                GameManager.Instance.coinPocketed;
+
+            if (GameManager.Instance.queenCovered)
+            {
+                Debug.Log(
+                    "Queen Covered — Normal Coin Was Pocketed First"
+                );
+            }
+            else
+            {
+                Debug.Log(
+                    "Queen Waiting For Cover"
+                );
+            }
 
             return;
         }

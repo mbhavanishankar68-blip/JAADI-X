@@ -344,11 +344,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   CurrentState: 0
-  striker: {fileID: 403107782}
-  strikerStart: {fileID: 725853758}
+  striker: {fileID: 0}
+  strikerStart: {fileID: 0}
   strikerPlaced: 0
-  queen: {fileID: 1984248794}
-  queenStartPosition: {fileID: 1105265258}
+  queen: {fileID: 0}
+  queenStartPosition: {fileID: 0}
   queenPocketed: 0
   waitingForQueenCover: 0
   queenCovered: 0
@@ -5073,11 +5073,6 @@ MonoBehaviour:
 --- !u!1 &1984248793 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1219292400220388174, guid: 5a0608f40828f044e8cbe3a5fc037d9a, type: 3}
-  m_PrefabInstance: {fileID: 1269375566}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &1984248794 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 747146096717563455, guid: 5a0608f40828f044e8cbe3a5fc037d9a, type: 3}
   m_PrefabInstance: {fileID: 1269375566}
   m_PrefabAsset: {fileID: 0}
 --- !u!114 &1984248795

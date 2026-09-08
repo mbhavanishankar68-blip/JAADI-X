@@ -15,14 +15,14 @@ TagManager:
   - Foreground
   - Water
   - UI
-  - Coin
+  - 
   - Walls
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Board
+  - Coin
+  - Striker
+  - Pocket
+  - Prediction
+  - UI3D
   - 
   - 
   - 

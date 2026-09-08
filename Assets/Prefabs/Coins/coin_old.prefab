@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 6111730608020048132}
   - component: {fileID: 3811875864010482235}
   - component: {fileID: 3414321178823312644}
-  - component: {fileID: -8358297745723812271}
+  - component: {fileID: -2912150673370676927}
   m_Layer: 0
-  m_Name: coin
+  m_Name: coin_old
   m_TagString: Coin
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -157,7 +157,7 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
---- !u!114 &-8358297745723812271
+--- !u!114 &-2912150673370676927
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -168,4 +168,5 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b4d380631e7763489ca2531c67ea4ab, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Coin
+  m_EditorClassIdentifier: Assembly-CSharp::JaadiX.Coins.Coin
+  coinData: {fileID: 0}
