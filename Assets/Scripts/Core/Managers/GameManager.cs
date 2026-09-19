@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 using JaadiX.Coins;
 
 public class GameManager : MonoBehaviour
@@ -45,8 +46,6 @@ public class GameManager : MonoBehaviour
 
     public bool queenCovered = false;
 
-    // True once the one-time bonus "cover" shot has already
-    // been granted for the CURRENT queen-cover cycle
     public bool queenCoverExtraShotGranted = false;
 
 
@@ -66,6 +65,23 @@ public class GameManager : MonoBehaviour
     //--------------------------------------------------
 
     public bool coinPocketed = false;
+
+
+    //--------------------------------------------------
+    // FOUL
+    //--------------------------------------------------
+
+    public bool strikerFoul = false;
+
+    [Header("Foul - Due Coins")]
+    [Tooltip("Where due coins are placed back on a foul. If left empty, queenStartPosition is used (standard board centre).")]
+    public Transform dueCoinReturnPoint;
+    public float dueCoinScatterRadius = 0.3f;
+
+    // Normal coins pocketed during the CURRENT shot. Used to
+    // return them as "due" coins if the shot turns out to be a
+    // foul. Cleared after every shot resolves, foul or not.
+    private readonly List<GameObject> coinsPocketedThisShot = new List<GameObject>();
 
 
     //--------------------------------------------------
@@ -139,6 +155,25 @@ public class GameManager : MonoBehaviour
         }
 
         CurrentState = GameState.Positioning;
+    }
+
+
+    //--------------------------------------------------
+    // RECORD A COIN POCKETED THIS SHOT
+    //--------------------------------------------------
+    //
+    // Called by PocketScript whenever a normal coin is pocketed.
+    // If this shot turns out to be a foul, these coins are
+    // returned to the board as "due" coins.
+    //--------------------------------------------------
+
+    public void RecordCoinPocketedThisShot(GameObject coinObject)
+    {
+        if (coinObject == null)
+            return;
+
+        if (!coinsPocketedThisShot.Contains(coinObject))
+            coinsPocketedThisShot.Add(coinObject);
     }
 
 
@@ -229,18 +264,123 @@ public class GameManager : MonoBehaviour
 
 
     //--------------------------------------------------
-    // END TURN
+    // END TURN (wrapper — guarantees the per-shot coin
+    // record list is always cleared afterward, regardless
+    // of which branch/return path EndTurnInternal takes)
     //--------------------------------------------------
 
     void EndTurn()
+    {
+        EndTurnInternal();
+
+        coinsPocketedThisShot.Clear();
+    }
+
+
+    //--------------------------------------------------
+    // END TURN INTERNAL
+    //--------------------------------------------------
+
+    void EndTurnInternal()
     {
         Debug.Log("Turn Finished");
 
 
         //--------------------------------------------------
+        // STRIKER FOUL — overrides everything else that
+        // happened this stroke. Checked first, always.
+        //--------------------------------------------------
+
+        if (strikerFoul)
+        {
+            Debug.Log("FOUL — Striker Pocketed This Stroke");
+
+            strikerFoul = false;
+
+            bool wasLastQueenInProgress =
+                lastQueenPendingExtraTurn || lastQueenExtraShot;
+
+            if (wasLastQueenInProgress)
+            {
+                lastQueenPendingExtraTurn = false;
+                lastQueenExtraShot = false;
+                queenReturnedOnce = false;
+            }
+
+            bool queenNeedsReturn =
+                waitingForQueenCover ||
+                queenPocketed ||
+                wasLastQueenInProgress;
+
+            if (queenNeedsReturn)
+            {
+                ReturnQueen();
+            }
+
+            waitingForQueenCover = false;
+            queenCovered = false;
+            queenPocketed = false;
+            queenCoverExtraShotGranted = false;
+
+            //--------------------------------------------------
+            // RETURN DUE COINS
+            //
+            // Any normal coins pocketed during this fouled
+            // stroke go back onto the board, and their points
+            // are reverted.
+            //--------------------------------------------------
+
+            if (coinsPocketedThisShot.Count > 0)
+            {
+                Debug.Log(
+                    "FOUL — Returning " +
+                    coinsPocketedThisShot.Count +
+                    " Due Coin(s) To Board"
+                );
+
+                foreach (GameObject coinObj in coinsPocketedThisShot)
+                {
+                    ReturnDueCoin(coinObj);
+                }
+
+                if (ScoreManager.Instance != null)
+                {
+                    ScoreManager.Instance.RevertPoints(
+                        coinsPocketedThisShot.Count
+                    );
+                }
+            }
+
+            coinPocketed = false;
+
+            ResetStriker();
+
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.NextPlayer();
+            }
+
+            if (ArePiecesStillOnBoard())
+            {
+                CurrentState = GameState.Positioning;
+                return;
+            }
+
+            if (ScoreManager.Instance != null &&
+                ScoreManager.Instance.IsGameOver())
+            {
+                CurrentState = GameState.GameOver;
+                ShowWinner();
+                return;
+            }
+
+            CurrentState = GameState.Positioning;
+            return;
+        }
+
+
+        //--------------------------------------------------
         // LAST QUEEN — transition into the bonus re-pocket shot.
-        // Deferred here so it only happens once everything —
-        // including the striker — has actually stopped moving.
         //--------------------------------------------------
 
         if (lastQueenPendingExtraTurn)
@@ -303,17 +443,10 @@ public class GameManager : MonoBehaviour
 
         //--------------------------------------------------
         // NORMAL QUEEN — COVER RESOLUTION
-        //
-        // Official rule: the queen must be covered either in
-        // the SAME stroke, or the IMMEDIATELY FOLLOWING stroke.
-        // If both fail, it is respotted and the turn passes.
         //--------------------------------------------------
 
         if (waitingForQueenCover)
         {
-            //--------------------------------------------------
-            // COVERED (same shot, either order)
-            //--------------------------------------------------
             if (queenCovered)
             {
                 Debug.Log("Queen Covered Successfully");
@@ -362,16 +495,12 @@ public class GameManager : MonoBehaviour
             }
 
 
-            //--------------------------------------------------
-            // NOT covered yet — grant the ONE bonus shot
-            //--------------------------------------------------
             if (!queenCoverExtraShotGranted)
             {
                 Debug.Log("Queen Pocketed — Bonus Shot To Cover");
 
                 queenCoverExtraShotGranted = true;
 
-                // This next shot's own outcome hasn't happened yet
                 coinPocketed = false;
 
                 ResetStriker();
@@ -381,9 +510,6 @@ public class GameManager : MonoBehaviour
             }
 
 
-            //--------------------------------------------------
-            // Bonus shot already used and STILL not covered
-            //--------------------------------------------------
             Debug.Log(
                 "Queen Not Covered — Returning To Centre"
             );
@@ -488,12 +614,14 @@ public class GameManager : MonoBehaviour
 
         striker.position = strikerStart.position;
 
+        striker.gameObject.SetActive(true);
+
         strikerPlaced = false;
     }
 
 
     //--------------------------------------------------
-    // RETURN QUEEN (failed cover)
+    // RETURN QUEEN (failed cover / foul)
     //--------------------------------------------------
 
     void ReturnQueen()
@@ -528,13 +656,55 @@ public class GameManager : MonoBehaviour
 
 
     //--------------------------------------------------
-    // LAST QUEEN BONUS SHOT
+    // RETURN A DUE COIN (foul only)
     //--------------------------------------------------
-    //
-    // This is the ONLY place the last-queen's position is
-    // ever touched. It runs from EndTurn() -> only after
-    // AllCoinsStopped() has confirmed the striker and every
-    // coin are fully at rest.
+
+    void ReturnDueCoin(GameObject coinObj)
+    {
+        if (coinObj == null)
+            return;
+
+        CoinPocketAnimation anim =
+            coinObj.GetComponent<CoinPocketAnimation>();
+
+        if (anim != null)
+            anim.CancelPocketAnimation();
+
+        Rigidbody2D rb =
+            coinObj.GetComponent<Rigidbody2D>();
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+
+        Transform returnPoint =
+            dueCoinReturnPoint != null
+                ? dueCoinReturnPoint
+                : queenStartPosition;
+
+        Vector3 basePos =
+            returnPoint != null
+                ? returnPoint.position
+                : Vector3.zero;
+
+        Vector2 randomOffset =
+            Random.insideUnitCircle * dueCoinScatterRadius;
+
+        coinObj.transform.position =
+            basePos + new Vector3(randomOffset.x, randomOffset.y, 0f);
+
+        coinObj.gameObject.SetActive(true);
+
+        Debug.Log(
+            "Due Coin Returned To Board: " + coinObj.name
+        );
+    }
+
+
+    //--------------------------------------------------
+    // LAST QUEEN BONUS SHOT
     //--------------------------------------------------
 
     public void StartLastQueenExtraTurn()

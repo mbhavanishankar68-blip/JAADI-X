@@ -10,12 +10,58 @@ public class PocketScript : MonoBehaviour
     {
         Rigidbody2D rb = other.attachedRigidbody;
 
+
         //--------------------------------------------------
-        // POCKET SPEED CHECK
+        // STRIKER FOUL
+        //
+        // Striker is ALWAYS a foul.
+        // Speed does not matter.
         //--------------------------------------------------
 
-        if (rb != null && rb.linearVelocity.magnitude > maxPocketSpeed)
+        if (other.CompareTag("Striker"))
+        {
+            if (GameManager.Instance == null)
+                return;
+
+            // Ignore duplicate triggers
+            if (GameManager.Instance.strikerFoul)
+                return;
+
+            Debug.Log("=================================");
+            Debug.Log("FOUL — STRIKER POCKETED");
+            Debug.Log("=================================");
+
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayWallHit();
+            }
+
+
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.angularVelocity = 0f;
+            }
+
+
+            GameManager.Instance.strikerFoul = true;
+
             return;
+        }
+
+      
+        //--------------------------------------------------
+        // POCKET SPEED CHECK
+        //
+        // Applies only to coins and Queen.
+        //--------------------------------------------------
+
+        if (rb != null &&
+            rb.linearVelocity.magnitude > maxPocketSpeed)
+        {
+            return;
+        }
 
 
         //--------------------------------------------------
@@ -27,7 +73,6 @@ public class PocketScript : MonoBehaviour
 
         if (tracker != null)
             tracker.ClearCapture();
-
 
         //--------------------------------------------------
         // NORMAL COIN
@@ -52,18 +97,11 @@ public class PocketScript : MonoBehaviour
                 other.gameObject.SetActive(false);
             }
 
-            //--------------------------------------------------
-            // Records that a normal coin was pocketed THIS shot
-            //--------------------------------------------------
-
             GameManager.Instance.coinPocketed = true;
 
-            //--------------------------------------------------
-            // QUEEN COVER
-            //
-            // Handles: Queen -> Coin (same shot), and
-            //          Queen -> [bonus shot] -> Coin
-            //--------------------------------------------------
+            // NEW: record this coin so it can be returned as a
+            // "due" coin if this stroke turns out to be a foul.
+            GameManager.Instance.RecordCoinPocketedThisShot(other.gameObject);
 
             if (GameManager.Instance.waitingForQueenCover)
             {
@@ -87,30 +125,13 @@ public class PocketScript : MonoBehaviour
 
         if (other.CompareTag("Queen"))
         {
-            //--------------------------------------------------
-            // DETERMINE IF THIS IS LAST QUEEN
-            //
-            // Last queen = no normal coins remain AND none was
-            // pocketed in THIS shot either (otherwise a coin
-            // from this same stroke already covers it — treat
-            // as a normal queen instead).
-            //--------------------------------------------------
-
             bool isLastQueen =
                 ScoreManager.Instance.GetNormalCoinsLeft() == 0 &&
                 !GameManager.Instance.coinPocketed;
 
 
-            //--------------------------------------------------
-            // LAST QUEEN
-            //--------------------------------------------------
-
             if (isLastQueen)
             {
-                //--------------------------------------------------
-                // IGNORE DUPLICATE TRIGGER
-                //--------------------------------------------------
-
                 if (GameManager.Instance.lastQueenPendingExtraTurn)
                 {
                     Debug.Log(
@@ -120,17 +141,6 @@ public class PocketScript : MonoBehaviour
                     return;
                 }
 
-
-                //--------------------------------------------------
-                // FIRST LAST-QUEEN POCKET
-                //
-                // IMPORTANT: do NOT reposition or reactivate the
-                // queen here. Just play the normal sink animation
-                // and raise the pending flag. GameManager.EndTurn()
-                // -> StartLastQueenExtraTurn() performs the actual
-                // reposition, only once the striker and all coins
-                // have fully stopped moving.
-                //--------------------------------------------------
 
                 if (!GameManager.Instance.lastQueenExtraShot)
                 {
@@ -166,11 +176,6 @@ public class PocketScript : MonoBehaviour
                 }
 
 
-                //--------------------------------------------------
-                // SECOND LAST-QUEEN POCKET (the bonus shot itself)
-                // -> WIN
-                //--------------------------------------------------
-
                 if (GameManager.Instance.lastQueenExtraShot)
                 {
                     Debug.Log(
@@ -203,17 +208,6 @@ public class PocketScript : MonoBehaviour
             }
 
 
-            //--------------------------------------------------
-            // NORMAL QUEEN
-            //
-            // Handles both orders within the same shot:
-            //   Queen -> Coin   (Coin branch sets queenCovered)
-            //   Coin -> Queen   (set here via coinPocketed)
-            //
-            // If neither happens this shot, GameManager grants
-            // one bonus shot before respotting (official rule).
-            //--------------------------------------------------
-
             Debug.Log("Queen Pocketed");
 
             if (AudioManager.Instance != null)
@@ -236,8 +230,6 @@ public class PocketScript : MonoBehaviour
             GameManager.Instance.queenPocketed = true;
             GameManager.Instance.waitingForQueenCover = true;
 
-            // If a normal coin was already pocketed BEFORE the
-            // queen in this same shot, it's covered immediately.
             GameManager.Instance.queenCovered =
                 GameManager.Instance.coinPocketed;
 

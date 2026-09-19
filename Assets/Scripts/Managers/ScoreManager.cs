@@ -1,196 +1,243 @@
-using UnityEngine;
-using JaadiX.Core;
-using JaadiX.Coins;
+    using UnityEngine;
+    using JaadiX.Core;
+    using JaadiX.Coins;
 
-public class ScoreManager : MonoBehaviour
-{
-    public static ScoreManager Instance;
-
-    public int player1Score = 0;
-    public int player2Score = 0;
-
-    public int currentPlayer = 1;
-
-    // Total remaining pieces
-    private int totalCoins;
-
-    // Remaining normal coins
-    private int normalCoinsLeft;
-
-    private bool initialized = false;
-
-    void Awake()
+    public class ScoreManager : MonoBehaviour
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
+        public static ScoreManager Instance;
 
-    // Called by GameManager AFTER Gameplay is loaded
-    public void InitializeScore()
-    {
-        Coin[] coins = FindObjectsByType<Coin>(
-            FindObjectsInactive.Exclude,
-            FindObjectsSortMode.None
-        );
+        public int player1Score = 0;
+        public int player2Score = 0;
 
-        totalCoins = coins.Length;
-        normalCoinsLeft = 0;
+        public int currentPlayer = 1;
 
-        foreach (Coin coin in coins)
+        // Total remaining pieces
+        private int totalCoins;
+
+        // Remaining normal coins
+        private int normalCoinsLeft;
+
+        private bool initialized = false;
+
+        void Awake()
         {
-            if (!coin.CompareTag("Queen"))
+            if (Instance == null)
             {
-                normalCoinsLeft++;
+                Instance = this;
+            }
+            else
+            {
+                Destroy(gameObject);
             }
         }
 
-        initialized = true;
-
-        if (UIManager.Instance != null)
+        // Called by GameManager AFTER Gameplay is loaded
+        public void InitializeScore()
         {
-            UIManager.Instance.UpdateScores(
-                player1Score,
-                player2Score
+            Coin[] coins = FindObjectsByType<Coin>(
+                FindObjectsInactive.Exclude,
+                FindObjectsSortMode.None
             );
 
-            UIManager.Instance.UpdateTurn(
-                currentPlayer == 1
+            totalCoins = coins.Length;
+            normalCoinsLeft = 0;
+
+            foreach (Coin coin in coins)
+            {
+                if (!coin.CompareTag("Queen"))
+                {
+                    normalCoinsLeft++;
+                }
+            }
+
+            initialized = true;
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateScores(
+                    player1Score,
+                    player2Score
+                );
+
+                UIManager.Instance.UpdateTurn(
+                    currentPlayer == 1
+                );
+
+                UIManager.Instance.UpdateRemainingCoins(
+                    totalCoins
+                );
+            }
+
+            Debug.Log("==============================");
+            Debug.Log("SCORE MANAGER INITIALIZED");
+            Debug.Log("Total Pieces : " + totalCoins);
+            Debug.Log("Normal Coins : " + normalCoinsLeft);
+            Debug.Log("==============================");
+        }
+
+        // Normal coin pocketed
+        public void AddPoint()
+        {
+            if (!initialized)
+            {
+                Debug.LogWarning(
+                    "ScoreManager is not initialized!"
+                );
+
+                return;
+            }
+
+            if (currentPlayer == 1)
+            {
+                player1Score++;
+            }
+            else
+            {
+                player2Score++;
+            }
+
+            if (totalCoins > 0)
+            {
+                totalCoins--;
+            }
+
+            if (normalCoinsLeft > 0)
+            {
+                normalCoinsLeft--;
+            }
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateScores(
+                    player1Score,
+                    player2Score
+                );
+
+                UIManager.Instance.UpdateRemainingCoins(
+                    totalCoins
+                );
+            }
+
+            Debug.Log(
+                "Normal Coins Left : " +
+                normalCoinsLeft
             );
 
-            UIManager.Instance.UpdateRemainingCoins(
+            Debug.Log(
+                "Total Pieces Left : " +
                 totalCoins
             );
         }
 
-        Debug.Log("==============================");
-        Debug.Log("SCORE MANAGER INITIALIZED");
-        Debug.Log("Total Pieces : " + totalCoins);
-        Debug.Log("Normal Coins : " + normalCoinsLeft);
-        Debug.Log("==============================");
-    }
-
-    // Normal coin pocketed
-    public void AddPoint()
-    {
-        if (!initialized)
+        // Queen is finally removed from the game
+        public void QueenScored()
         {
-            Debug.LogWarning(
-                "ScoreManager is not initialized!"
-            );
+            if (!initialized)
+            {
+                Debug.LogWarning(
+                    "ScoreManager is not initialized!"
+                );
 
-            return;
-        }
+                return;
+            }
 
-        if (currentPlayer == 1)
-        {
-            player1Score++;
-        }
-        else
-        {
-            player2Score++;
-        }
+            if (totalCoins > 0)
+            {
+                totalCoins--;
+            }
 
-        if (totalCoins > 0)
-        {
-            totalCoins--;
-        }
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateRemainingCoins(
+                    totalCoins
+                );
+            }
 
-        if (normalCoinsLeft > 0)
-        {
-            normalCoinsLeft--;
-        }
+            Debug.Log("Queen Removed");
 
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.UpdateScores(
-                player1Score,
-                player2Score
-            );
-
-            UIManager.Instance.UpdateRemainingCoins(
+            Debug.Log(
+                "Total Pieces Left : " +
                 totalCoins
             );
         }
 
-        Debug.Log(
-            "Normal Coins Left : " +
-            normalCoinsLeft
-        );
-
-        Debug.Log(
-            "Total Pieces Left : " +
-            totalCoins
-        );
-    }
-
-    // Queen is finally removed from the game
-    public void QueenScored()
-    {
-        if (!initialized)
+        public int GetNormalCoinsLeft()
         {
-            Debug.LogWarning(
-                "ScoreManager is not initialized!"
+            return normalCoinsLeft;
+        }
+
+        public int GetTotalCoinsLeft()
+        {
+            return totalCoins;
+        }
+
+        public void NextPlayer()
+        {
+            currentPlayer =
+                (currentPlayer == 1) ? 2 : 1;
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateTurn(
+                    currentPlayer == 1
+                );
+            }
+
+            Debug.Log(
+                "Current Player : " +
+                currentPlayer
             );
-
-            return;
         }
-
-        if (totalCoins > 0)
+        public void RevertPoints(int count)
         {
-            totalCoins--;
-        }
+            if (!initialized)
+            {
+                Debug.LogWarning(
+                    "ScoreManager is not initialized!"
+                );
 
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.UpdateRemainingCoins(
+                return;
+            }
+
+            if (count <= 0)
+                return;
+
+            if (currentPlayer == 1)
+            {
+                player1Score =
+                    Mathf.Max(0, player1Score - count);
+            }
+            else
+            {
+                player2Score =
+                    Mathf.Max(0, player2Score - count);
+            }
+
+            totalCoins += count;
+            normalCoinsLeft += count;
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateScores(
+                    player1Score,
+                    player2Score
+                );
+
+                UIManager.Instance.UpdateRemainingCoins(
+                    totalCoins
+                );
+            }
+
+            Debug.Log(
+                "Reverted " +
+                count +
+                " point(s) due to foul. " +
+                "Coins Left : " +
                 totalCoins
             );
         }
-
-        Debug.Log("Queen Removed");
-
-        Debug.Log(
-            "Total Pieces Left : " +
-            totalCoins
-        );
-    }
-
-    public int GetNormalCoinsLeft()
-    {
-        return normalCoinsLeft;
-    }
-
-    public int GetTotalCoinsLeft()
-    {
-        return totalCoins;
-    }
-
-    public void NextPlayer()
-    {
-        currentPlayer =
-            (currentPlayer == 1) ? 2 : 1;
-
-        if (UIManager.Instance != null)
+        public bool IsGameOver()
         {
-            UIManager.Instance.UpdateTurn(
-                currentPlayer == 1
-            );
+            return initialized && totalCoins <= 0;
         }
-
-        Debug.Log(
-            "Current Player : " +
-            currentPlayer
-        );
     }
-
-    public bool IsGameOver()
-    {
-        return initialized && totalCoins <= 0;
-    }
-}
